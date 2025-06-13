@@ -1,0 +1,10 @@
+numpy
+pandas
+requests
+xarray
+OWSLib
+shapely
+scipy
+networkx
+folium
+flask
