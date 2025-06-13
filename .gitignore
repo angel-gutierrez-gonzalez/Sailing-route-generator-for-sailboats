@@ -1,0 +1,8 @@
+data/external_sources/OSM-OpenCPN2-KAP-MediWest.7z
+data/external_sources/OSM-OpenCPN2-KAP-GulfOfBiscay.7z
+data/raw/cmems
+notebooks/cache
+map_interaction/__pycache__
+.venv
+.ipynb_checkpoints
+utils
