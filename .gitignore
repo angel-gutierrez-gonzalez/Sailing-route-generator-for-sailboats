@@ -13,3 +13,4 @@ graph/__init__.py
 utils/__pycache__
 utils/config.py
 utils/__init__.py
+pipeline/__pycache__/build_area_graph.cpython-311.pyc
