@@ -29,7 +29,7 @@ def bearing(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
-def load_single_area(area_geojson_path: str) -> BaseGeometry:
+def load_new_area(area_geojson_path: str) -> BaseGeometry:
     """
     Carga un único archivo GeoJSON y devuelve su geometría (polígono o multipolígono).
     """
