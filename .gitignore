@@ -13,3 +13,9 @@ graph/__init__.py
 utils/__pycache__
 utils/config.py
 utils/__init__.py
+pipeline/__pycache__/build_area_graph.cpython-311.pyc
+tfm_deterministic_agent/graph/__pycache__
+tfm_deterministic_agent/map_interaction/__pycache__
+tfm_deterministic_agent/utils/__pycache__
+tfm_deterministic_agent/pathfinding/__pycache__
+tfm_deterministic_agent/pipeline/__pycache__
