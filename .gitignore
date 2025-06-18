@@ -1,7 +1,4 @@
-data/external_sources/OSM-OpenCPN2-KAP-MediWest.7z
-data/external_sources/OSM-OpenCPN2-KAP-GulfOfBiscay.7z
-data/raw/cmems
-data/raw
+data
 notebooks/cache
 map_interaction/__pycache__
 .venv
@@ -20,3 +17,6 @@ tfm_deterministic_agent/utils/__pycache__
 tfm_deterministic_agent/pathfinding/__pycache__
 tfm_deterministic_agent/pipeline/__pycache__
 tfm_deterministic_agent/generate_area/__pycache__
+notebooks
+notebooks/Vector_de_datos.ipynb
+notebooks/API_OpenSeaMap.ipynb
