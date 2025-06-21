@@ -2,48 +2,51 @@ import gym
 import numpy as np
 from gym import spaces
 
-from environment.polar_diagram import get_boat_speed
-from environment.wind_model import WindField
 from environment.reward import compute_reward
 
 
 class SailingEnv(gym.Env):
     """
     Entorno personalizado de navegación a vela compatible con OpenAI Gym.
-    Estado: [lat, lon, rumbo, velocidad, viento_dir, viento_vel]
-    Acción: [cambio_rumbo, cambio_velocidad] (discreto o continuo)
+    Estado: [lat, lon, heading, speed, wind_dir, wind_speed]
+    Acción: [delta_heading, delta_speed] (discreta o continua)
     """
     def __init__(self, config):
         super(SailingEnv, self).__init__()
 
         self.config = config
-        self.wind_field = WindField(config['wind'])
-        self.polar_diagram = config['polar_diagram']
-        self.grid = config['grid']
-        self.goal = config['goal']
+        self.wind_field = config['wind']  # instancia de WindField
+        self.polar_diagram = config['polar_diagram']  # instancia de PolarDiagram
+        self.grid = config.get('grid', None)
+        self.goal = np.array(config['goal'], dtype=np.float32)
+        self.static_wind = config.get('static_wind', False)
+        self.static_wind_values = None
 
         # Espacio de observación
         low = np.array([0, 0, 0, 0, 0, 0])
-        high = np.array([1, 1, 360, 20, 360, 20])  # lat, lon, heading, speed, wind_dir, wind_speed
+        high = np.array([1, 1, 360, 20, 360, 20])
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
 
         # Espacio de acción
         if config['continuous']:
             self.action_space = spaces.Box(
-                low=np.array([-10, -1]), high=np.array([10, 1]), dtype=np.float32  # delta heading, delta speed
+                low=np.array([-10, -1]), high=np.array([10, 1]), dtype=np.float32
             )
         else:
-            self.action_space = spaces.Discrete(9)  # 3 heading x 3 speed (e.g. left/none/right x slow/none/fast)
+            self.action_space = spaces.Discrete(9)  # 3 heading x 3 speed
 
         self.reset()
 
     def reset(self):
-        self.position = np.array(self.config['start'], dtype=np.float32)  # lat, lon
-        self.heading = 90.0  # hacia el Este
-        self.speed = 5.0     # nudos iniciales
-        self.t = 0           # tiempo en minutos
+        self.position = np.array(self.config['start'], dtype=np.float32)
+        self.heading = 90.0
+        self.speed = 5.0
+        self.t = 0  # tiempo en minutos desde inicio
 
         wind_dir, wind_speed = self.wind_field.get(self.position, self.t)
+        if self.static_wind:
+            self.static_wind_values = (wind_dir, wind_speed)
+
         self.state = np.array([
             *self.position,
             self.heading,
@@ -55,28 +58,30 @@ class SailingEnv(gym.Env):
         return self.state
 
     def step(self, action):
-        # Aplicar acción
+        # Acción: cambio en rumbo y velocidad
         if self.config['continuous']:
             delta_heading, delta_speed = action
         else:
             delta_heading, delta_speed = self.decode_discrete_action(action)
 
-        self.heading += delta_heading
-        self.speed += delta_speed
-        self.heading = self.heading % 360
-        self.speed = np.clip(self.speed, 0, 20)
+        self.heading = (self.heading + delta_heading) % 360
+        self.speed = np.clip(self.speed + delta_speed, 0, 20)
 
         # Obtener condiciones de viento
-        wind_dir, wind_speed = self.wind_field.get(self.position, self.t)
+        if self.static_wind and self.static_wind_values:
+            wind_dir, wind_speed = self.static_wind_values
+        else:
+            wind_dir, wind_speed = self.wind_field.get(self.position, self.t)
 
-        # Consultar diagrama polar
-        relative_wind_angle = (wind_dir - self.heading) % 360
-        boat_speed = get_boat_speed(self.polar_diagram, relative_wind_angle, wind_speed)
+        # Calcular velocidad del barco según el diagrama polar
+        relative_angle = (wind_dir - self.heading) % 360
+        boat_speed = self.polar_diagram.get_boat_speed(relative_angle, wind_speed)
 
-        # Mover el barco
-        dx = boat_speed * np.cos(np.radians(self.heading)) * self.config['dt'] / 60
-        dy = boat_speed * np.sin(np.radians(self.heading)) * self.config['dt'] / 60
-        self.position += np.array([dy, dx])  # aproximación simple para lat/lon
+        # Movimiento en dt minutos
+        dt = self.config['dt'] / 60  # convertir a horas
+        dx = boat_speed * np.cos(np.radians(self.heading)) * dt
+        dy = boat_speed * np.sin(np.radians(self.heading)) * dt
+        self.position += np.array([dy, dx])  # latitud y longitud aproximadas
 
         self.t += self.config['dt']
         done = self.reached_goal(self.position)
@@ -105,4 +110,4 @@ class SailingEnv(gym.Env):
         return mapping[action]
 
     def render(self, mode='human'):
-        print(f"t={self.t} pos={self.position} heading={self.heading:.1f} speed={self.speed:.1f}")
+        print(f"t={self.t} min | pos={self.position} | heading={self.heading:.1f}° | speed={self.speed:.1f} kn")
