@@ -1,13 +1,13 @@
 import math
 import numpy as np
-import pandas as pd
 import networkx as nx
 from scipy.spatial import cKDTree
 from shapely.geometry import LineString
 from shapely.ops import unary_union
+from tqdm import tqdm
 
 class PolarDiagram:
-    def __init__(self, polar_df: pd.DataFrame, twa_col='TWA', speed_col=None):
+    def __init__(self, polar_df, twa_col='TWA', speed_col=None):
         df = polar_df.copy()
         # Renombrar columnas
         if twa_col not in df.columns:
@@ -17,10 +17,10 @@ class PolarDiagram:
             if not candidates:
                 raise KeyError("No speed column found")
             speed_col = candidates[0]
-        df = df.rename(columns={twa_col: 'TWA', speed_col: 'Speed'})
+        df = df.rename(columns={twa_col:'TWA', speed_col:'Speed'})
         # Quitar duplicados y ordenar
         df = df[['TWA','Speed']].drop_duplicates('TWA').sort_values('TWA').reset_index(drop=True)
-        self.twas   = df['TWA'].values
+        self.twas = df['TWA'].values
         self.speeds = df['Speed'].values
 
     def get_speed(self, twa: float) -> float:
@@ -61,8 +61,8 @@ def bearing(lon1, lat1, lon2, lat2) -> float:
 
 
 def build_weighted_graph(
-    nodes_df: pd.DataFrame,
-    polar_df: pd.DataFrame,
+    nodes_df,
+    polar_df,
     union_restr,               # MultiPolygon de zonas NO navegables
     max_neighbors: int = 32,
     neighbor_cells: int = 3,
@@ -77,6 +77,7 @@ def build_weighted_graph(
       - (Opcional) beta_turn penalización de cambio de rumbo
     Cada arista guarda:
       distance_nm, time_h, comfort, heading, weight_base, beta_turn.
+    Muestra una barra de progreso usando tqdm.
     """
     polar = PolarDiagram(polar_df)
     G = nx.DiGraph()
@@ -110,8 +111,8 @@ def build_weighted_graph(
     radius_deg = math.sqrt((neighbor_cells*dlat)**2 + (neighbor_cells*dlon)**2)
     sector_width = 360.0 / max_neighbors
 
-    # Crear aristas
-    for u in G.nodes:
+    # Bucle de aristas con barra de progreso
+    for u in tqdm(nav['node_id'], desc="Construyendo grafo", unit="nodo"):
         lon_u = G.nodes[u]['longitude']
         lat_u = G.nodes[u]['latitude']
         Dw    = G.nodes[u]['wind_dir']
@@ -159,9 +160,8 @@ def build_weighted_graph(
             if boat_speed <= 0:
                 continue
 
-            time_h    = best_dist_nm / boat_speed
-            comfort   = abs(math.cos(math.radians(twa)))
-            # aquí NO conocemos el heading previo: beta_turn se aplicará en la búsqueda
+            time_h      = best_dist_nm / boat_speed
+            comfort     = abs(math.cos(math.radians(twa)))
             weight_base = alpha_time * time_h + beta_comfort * comfort
 
             G.add_edge(u, best_v,
