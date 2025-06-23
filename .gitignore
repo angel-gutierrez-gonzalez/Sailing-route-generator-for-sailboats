@@ -1,7 +1,5 @@
-data
 notebooks/cache
 map_interaction/__pycache__
-.venv
 .ipynb_checkpoints
 graph/__pycache__
 pathfinding/__pycache__
@@ -23,3 +21,5 @@ notebooks/API_OpenSeaMap.ipynb
 tfm_drl_agent/agents/__pycache__
 tfm_drl_agent/environment/__pycache__
 tfm_drl_agent/training/__pycache__
+data/raw/cmems
+tfm_drl_agent/notebook/models
