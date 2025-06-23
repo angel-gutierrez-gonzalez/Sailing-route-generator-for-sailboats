@@ -2,9 +2,10 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 import random
+import os
 
-
-def train_ddpg(agent, env, episodes=500, batch_size=64, buffer_capacity=100_000):
+def train_ddpg(agent, env, episodes=500, batch_size=64, buffer_capacity=100_000, save_path="models/ddpg_checkpoint", save_interval=30):
+    os.makedirs(save_path, exist_ok=True)
     replay_buffer = deque(maxlen=buffer_capacity)
     rewards_history = []
 
@@ -60,5 +61,13 @@ def train_ddpg(agent, env, episodes=500, batch_size=64, buffer_capacity=100_000)
 
         rewards_history.append(episodic_reward)
         print(f"Episode {ep+1}: Reward = {episodic_reward:.2f}, Buffer = {len(replay_buffer)}")
+
+        # Guardar modelo cada save_interval episodios
+        if (ep + 1) % save_interval == 0:
+            actor_path = os.path.join(save_path, f"actor_ep{ep+1}.h5")
+            critic_path = os.path.join(save_path, f"critic_ep{ep+1}.h5")
+            agent.actor_model.save(actor_path)
+            agent.critic_model.save(critic_path)
+            print(f"[INFO] Modelos guardados en episodio {ep+1}")
 
     return rewards_history
