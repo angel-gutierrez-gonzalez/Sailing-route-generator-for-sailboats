@@ -5,12 +5,19 @@ import glob
 
 def load_expert_data_multiple(folder_path):
     all_files = glob.glob(os.path.join(folder_path, "*.csv"))
+    print(f"[INFO] Cargando {len(all_files)} archivos de datos de experto desde: {folder_path}")
+
     X_list, y_list = [], []
 
     for file in all_files:
         df = pd.read_csv(file)
         X = df[["latitude", "longitude", "heading", "speed", "wind_dir", "wind_speed"]].values
         y = df[["target_heading", "target_speed"]].values
+
+        # Escalar etiquetas a rango [-1, 1] para que coincidan con activación tanh del actor
+        y[:, 0] = (y[:, 0] / 180.0) - 1.0     # heading: [0,360] → [-1,1]
+        y[:, 1] = (y[:, 1] / 10.0) - 1.0      # speed:   [0,20]  → [-1,1]
+
         X_list.append(X)
         y_list.append(y)
 
