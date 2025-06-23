@@ -20,3 +20,6 @@ tfm_deterministic_agent/generate_area/__pycache__
 notebooks
 notebooks/Vector_de_datos.ipynb
 notebooks/API_OpenSeaMap.ipynb
+tfm_drl_agent/agents/__pycache__
+tfm_drl_agent/environment/__pycache__
+tfm_drl_agent/training/__pycache__
