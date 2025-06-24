@@ -6,32 +6,72 @@ from shapely.geometry import LineString
 from shapely.ops import unary_union
 from tqdm import tqdm
 
-class PolarDiagram:
-    def __init__(self, polar_df, twa_col='TWA', speed_col=None):
-        df = polar_df.copy()
-        # Renombrar columnas
-        if twa_col not in df.columns:
-            raise KeyError(f"TWA column '{twa_col}' not found")
-        if speed_col is None:
-            candidates = [c for c in df.columns if 'speed' in c.lower()]
-            if not candidates:
-                raise KeyError("No speed column found")
-            speed_col = candidates[0]
-        df = df.rename(columns={twa_col:'TWA', speed_col:'Speed'})
-        # Quitar duplicados y ordenar
-        df = df[['TWA','Speed']].drop_duplicates('TWA').sort_values('TWA').reset_index(drop=True)
-        self.twas = df['TWA'].values
-        self.speeds = df['Speed'].values
+import numpy as np
+import pandas as pd
 
-    def get_speed(self, twa: float) -> float:
+class PolarDiagram:
+    """
+    Interpola velocidad de barco γ(wind_speed, twa) a partir
+    de un CSV semicolon que tiene:
+
+      Columna 0: TWA (e.g. 0, 52, 60, …)
+      Columnas 1…M: TWS (viento real) como nombres de columna
+                    (e.g. 4;6;8;10;12;14;16;20;24)
+
+      Ejemplo de cabecera:
+        twa/tws;4;6;8;10;12;14;16;20;24
+    """
+
+    def __init__(self, csv_path: str):
+        # Leemos con pandas
+        df = pd.read_csv(csv_path, sep=';')
+        # Renombrar la primera columna a 'TWA'
+        first = df.columns[0]
+        if first.lower().startswith('twa'):
+            df = df.rename(columns={first: 'TWA'})
+        else:
+            df = df.rename(columns={first: 'TWA'})
+        # Extraer vectores TWA y TWS
+        self.twa = df['TWA'].values.astype(float)
+        # Los otros nombres de columna son los TWS
+        self.tws = np.array([float(c) for c in df.columns[1:]])
+        # Matriz (n_twa × n_tws) con las velocidades del barco
+        self.matrix = df.iloc[:,1:].values.astype(float)
+
+    def get_speed(self, twa: float, tws: float) -> float:
         """
-        Devuelve gamma(w, beta) interpolado en el diagrama polar.
-        Extrapola en los extremos sin IndexError.
+        Devuelve γ(tws, twa) interpolando bilinealmente:
+         1) Primero interpola en TWA (entre dos filas)
+         2) Luego interpola en TWS (entre dos columnas)
+        Normaliza twa a [0,180], y recorta twa/tws a los rangos disponibles.
         """
-        # Normalizar twa a [-180,180]
-        twa = abs(((twa + 180) % 360) - 180)
-        # Interpolar linealmente, extrapolando a los extremos
-        return float(np.interp(twa, self.twas, self.speeds))
+        # 1) Normalizar twa a la banda [-180,180]
+        twa_rel = abs(((twa + 180) % 360) - 180)
+        # 2) Limitar dentro del rango
+        twa_rel = min(max(twa_rel, self.twa[0]), self.twa[-1])
+        tws_clamped = min(max(tws, self.tws[0]), self.tws[-1])
+
+        # 3) Interpolación en TWA (fila)
+        i = np.searchsorted(self.twa, twa_rel)
+        if i == 0:
+            row = self.matrix[0]
+        elif i >= len(self.twa):
+            row = self.matrix[-1]
+        else:
+            t0, t1 = self.twa[i-1], self.twa[i]
+            w = (twa_rel - t0) / (t1 - t0)
+            row = (1-w)*self.matrix[i-1] + w*self.matrix[i]
+
+        # 4) Interpolación en TWS (columna)
+        j = np.searchsorted(self.tws, tws_clamped)
+        if j == 0:
+            return float(row[0])
+        elif j >= len(self.tws):
+            return float(row[-1])
+        else:
+            s0, s1 = self.tws[j-1], self.tws[j]
+            w2 = (tws_clamped - s0) / (s1 - s0)
+            return float((1-w2)*row[j-1] + w2*row[j])
 
 
 def haversine(lon1, lat1, lon2, lat2) -> float:
