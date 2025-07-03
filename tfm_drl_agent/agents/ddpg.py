@@ -24,11 +24,6 @@ class OUActionNoise:
     def reset(self):
         self.x_prev = self.x_initial if self.x_initial is not None else np.zeros_like(self.mean)
 
-
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers
-
 class DDPGAgent:
     def __init__(self, env, actor_lr=1e-4, critic_lr=1e-3, gamma=0.99, tau=0.005):
         self.env = env
